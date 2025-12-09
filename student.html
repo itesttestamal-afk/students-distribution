@@ -37,7 +37,11 @@ th { color: white; }
 
 <div id="students">
   <ol>
-    <!-- 20 خانة لتسجيل الطلاب حسب مجموع الأرقام الجديدة -->
+    <!-- 24 خانة لتسجيل الطلاب -->
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
@@ -70,7 +74,7 @@ th { color: white; }
 <script>
 const rooms = ["סיבם","עוז","משאבים","אי טסט"];
 const roomCounts = { "סיבם":5, "עוז":6, "משאבים":4, "אי טסט":5 };
-const examDuration = 35; // دقيقة لكل طالب
+const examDuration = 35; // دقيقة لكل مجموعة
 
 function addMinutes(timeStr, minsToAdd) {
   const [h, m] = timeStr.split(":").map(Number);
@@ -85,26 +89,24 @@ function addMinutes(timeStr, minsToAdd) {
 function distribute() {
   const startTime = document.getElementById("startTime").value;
   const inputs = document.querySelectorAll("#students input");
-  const student = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
-  
-  // التوزيع حسب الأرقام المحددة لكل غرفة
+  const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
+
   const roomTables = {};
-  rooms.forEach(r => roomTables[r]=[]);
-  
+  rooms.forEach(r => roomTables[r] = []);
+
+  // توزيع الطلاب حسب العدد المحدد لكل غرفة
   let index = 0;
-  rooms.forEach(r=>{
-    for(let i=0;i<roomCounts[r];i++){
-      if(student[index]) {
-        roomTables[r].push(student[index]);
-        index++;
-      }
-    }
+  rooms.forEach(r => {
+    const count = roomCounts[r];
+    const group = students.slice(index, index + count);
+    roomTables[r] = group;
+    index += count;
   });
 
-  // حساب وقت لكل طالب وعرضه
   const container = document.getElementById("rooms");
   container.innerHTML = "";
-  rooms.forEach(r=>{
+
+  rooms.forEach(r => {
     const tbl = document.createElement("table");
     let className = "";
     if(r==="סיבם") className="room-sivam";
@@ -113,50 +115,56 @@ function distribute() {
     if(r==="משאבים") className="room-mashabim";
     tbl.className = className;
 
-    let html = `<tr><th colspan="4">${r}</th></tr>`;
-    const maxRows = Math.ceil(roomTables[r].length / 4);
-    for(let i=0;i<maxRows;i++){
-      html += "<tr>";
-      for(let j=0;j<4;j++){
-        const idx = i*4 + j;
-        if(roomTables[r][idx]){
-          const studentName = roomTables[r][idx];
-          const examStart = addMinutes(startTime, idx*examDuration);
-          const examEnd = addMinutes(examStart, examDuration);
-          html += `<td>${studentName}<br>${examStart} - ${examEnd}</td>`;
-        } else {
-          html += "<td></td>";
-        }
-      }
-      html += "</tr>";
-    }
+    // عرض الطلاب في صف واحد مع الوقت المشترك
+    let html = `<tr><th colspan="${roomCounts[r]}">${r}</th></tr>`;
+    html += "<tr>";
+    roomTables[r].forEach(student => {
+      const examStart = startTime;
+      const examEnd = addMinutes(startTime, examDuration);
+      html += `<td>${student}<br>${examStart} - ${examEnd}</td>`;
+    });
+    html += "</tr>";
+
     tbl.innerHTML = html;
     container.appendChild(tbl);
   });
 }
 
-function exportExcel(){
-  const wb = XLSX.utils.book_new();
-  const inputs = document.querySelectorAll("#students input");
-  const student = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
-  const roomData = {};
-  rooms.forEach(r=>roomData[r]=[]);
-  let index = 0;
-  rooms.forEach(r=>{
-    for(let i=0;i<roomCounts[r];i++){
-      if(student[index]) {
-        const examStart = addMinutes(document.getElementById("startTime").value, index*examDuration);
+function exportExcel() {
+    const wb = XLSX.utils.book_new();
+    const inputs = document.querySelectorAll("#students input");
+    const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
+    let index = 0;
+
+    rooms.forEach(r => {
+        const ws_data = [];
+        ws_data.push([r]); // اسم الغرفة
+
+        // صفوف الطلاب مع الوقت المشترك
+        const group = students.slice(index, index + roomCounts[r]);
+        index += roomCounts[r];
+        const examStart = document.getElementById("startTime").value;
         const examEnd = addMinutes(examStart, examDuration);
-        roomData[r].push([`${student[index]} (${examStart} - ${examEnd})`]);
-        index++;
-      }
-    }
-  });
-  rooms.forEach(r=>{
-    const ws = XLSX.utils.aoa_to_sheet(roomData[r]);
-    XLSX.utils.book_append_sheet(wb, ws, r);
-  });
-  XLSX.writeFile(wb,"توزيع_الطلاب.xlsx");
+        group.forEach(student => {
+            ws_data.push([student, `${examStart} - ${examEnd}`]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+        // تنسيق اسم الغرفة باللون الأحمر
+        ws['A1'].s = { font: { color: { rgb: "FF0000" }, bold: true, sz: 14 } };
+        // تنسيق الوقت باللون الأصفر
+        for (let rIdx = 2; rIdx <= roomCounts[r]+1; rIdx++) {
+            const cellAddress = `B${rIdx}`;
+            if(ws[cellAddress]) {
+                ws[cellAddress].s = { fill: { fgColor: { rgb: "FFFF00" } } };
+            }
+        }
+
+        XLSX.utils.book_append_sheet(wb, ws, r);
+    });
+
+    XLSX.writeFile(wb, "توزيع_الطلاب_منسق.xlsx");
 }
 </script>
 
