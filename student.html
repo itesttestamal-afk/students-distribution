@@ -5,19 +5,44 @@
 <title>توزيع الطلاب على الغرف</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-body { font-family: Arial; padding: 20px; direction: rtl; }
-input { margin: 5px 0; width: 200px; }
-button { margin: 10px 0; padding: 10px; }
-table { border-collapse: collapse; margin: 10px 0; }
+body { font-family: Arial; padding: 20px; direction: rtl; background: #f0f2f5; }
+h2 { color: #333; }
+input { margin: 5px 0; width: 220px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
+button { margin: 10px 0; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background: #4CAF50; color: white; font-size: 16px; }
+button:hover { background: #45a049; }
+table { border-collapse: collapse; margin: 15px 0; width: 300px; }
 td, th { border: 1px solid #000; padding: 5px; text-align: center; }
+th { color: white; }
+.room-sivam th { background: #FF6F61; }
+.room-oz th { background: #6B5B95; }
+.room-eitest th { background: #88B04B; }
+.room-mashabim th { background: #F7CAC9; }
+.room-sivam td { background: #FFD1C1; }
+.room-oz td { background: #C1B3E3; }
+.room-eitest td { background: #DFF0C1; }
+.room-mashabim td { background: #FDDDE6; }
+.container { display: flex; flex-wrap: wrap; gap: 15px; }
 </style>
 </head>
 <body>
 
 <h2>تسجيل الطلاب</h2>
+<div>
+<label>ساعة بداية الامتحان:</label>
+<input type="time" id="startTime" value="08:00">
+<br>
+<label>ساعة نهاية الامتحان:</label>
+<input type="time" id="endTime" value="15:00">
+</div>
+
 <div id="students">
   <ol>
-    <!-- 15 خانة لتسجيل الطلاب -->
+    <!-- 20 خانة لتسجيل الطلاب حسب مجموع الأرقام الجديدة -->
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
     <li><input type="text" placeholder="اسم الطالب"></li>
@@ -37,38 +62,101 @@ td, th { border: 1px solid #000; padding: 5px; text-align: center; }
 </div>
 
 <button onclick="distribute()">توزيع الطلاب على الغرف</button>
+<button onclick="exportExcel()">تصدير ملف Excel</button>
 
 <h2>النتيجة</h2>
-<div id="rooms"></div>
+<div class="container" id="rooms"></div>
 
 <script>
-const rooms = ["סיבם","עוז","אי טסט","משאבים"];
+const rooms = ["סיבם","עוז","משאבים","אי טסט"];
+const roomCounts = { "סיבם":5, "עוז":6, "משאבים":4, "אי טסט":5 };
+const examDuration = 35; // دقيقة لكل طالب
+
+function addMinutes(timeStr, minsToAdd) {
+  const [h, m] = timeStr.split(":").map(Number);
+  const date = new Date();
+  date.setHours(h, m);
+  date.setMinutes(date.getMinutes() + minsToAdd);
+  const hh = String(date.getHours()).padStart(2,'0');
+  const mm = String(date.getMinutes()).padStart(2,'0');
+  return `${hh}:${mm}`;
+}
 
 function distribute() {
+  const startTime = document.getElementById("startTime").value;
   const inputs = document.querySelectorAll("#students input");
-  const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
-  const roomTables = {};
+  const student = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
   
+  // التوزيع حسب الأرقام المحددة لكل غرفة
+  const roomTables = {};
   rooms.forEach(r => roomTables[r]=[]);
-
-  students.forEach((s,i)=>{
-    const roomIndex = i % 4;
-    roomTables[rooms[roomIndex]].push(s);
+  
+  let index = 0;
+  rooms.forEach(r=>{
+    for(let i=0;i<roomCounts[r];i++){
+      if(student[index]) {
+        roomTables[r].push(student[index]);
+        index++;
+      }
+    }
   });
 
+  // حساب وقت لكل طالب وعرضه
   const container = document.getElementById("rooms");
   container.innerHTML = "";
   rooms.forEach(r=>{
     const tbl = document.createElement("table");
+    let className = "";
+    if(r==="סיבם") className="room-sivam";
+    if(r==="עוז") className="room-oz";
+    if(r==="אי טסט") className="room-eitest";
+    if(r==="משאבים") className="room-mashabim";
+    tbl.className = className;
+
     let html = `<tr><th colspan="4">${r}</th></tr>`;
-    for(let i=0;i<4;i++){
+    const maxRows = Math.ceil(roomTables[r].length / 4);
+    for(let i=0;i<maxRows;i++){
       html += "<tr>";
-      html += `<td>${roomTables[r][i] || ""}</td>`;
+      for(let j=0;j<4;j++){
+        const idx = i*4 + j;
+        if(roomTables[r][idx]){
+          const studentName = roomTables[r][idx];
+          const examStart = addMinutes(startTime, idx*examDuration);
+          const examEnd = addMinutes(examStart, examDuration);
+          html += `<td>${studentName}<br>${examStart} - ${examEnd}</td>`;
+        } else {
+          html += "<td></td>";
+        }
+      }
       html += "</tr>";
     }
     tbl.innerHTML = html;
     container.appendChild(tbl);
   });
+}
+
+function exportExcel(){
+  const wb = XLSX.utils.book_new();
+  const inputs = document.querySelectorAll("#students input");
+  const student = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
+  const roomData = {};
+  rooms.forEach(r=>roomData[r]=[]);
+  let index = 0;
+  rooms.forEach(r=>{
+    for(let i=0;i<roomCounts[r];i++){
+      if(student[index]) {
+        const examStart = addMinutes(document.getElementById("startTime").value, index*examDuration);
+        const examEnd = addMinutes(examStart, examDuration);
+        roomData[r].push([`${student[index]} (${examStart} - ${examEnd})`]);
+        index++;
+      }
+    }
+  });
+  rooms.forEach(r=>{
+    const ws = XLSX.utils.aoa_to_sheet(roomData[r]);
+    XLSX.utils.book_append_sheet(wb, ws, r);
+  });
+  XLSX.writeFile(wb,"توزيع_الطلاب.xlsx");
 }
 </script>
 
