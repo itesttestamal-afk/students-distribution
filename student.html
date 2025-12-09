@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>توزيع الطلاب على الغرف</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+body { font-family: Arial; padding: 20px; direction: rtl; }
+input { margin: 5px 0; width: 200px; }
+button { margin: 10px 0; padding: 10px; }
+table { border-collapse: collapse; margin: 10px 0; }
+td, th { border: 1px solid #000; padding: 5px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h2>تسجيل الطلاب</h2>
+<div id="students">
+  <ol>
+    <!-- 15 خانة لتسجيل الطلاب -->
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+    <li><input type="text" placeholder="اسم الطالب"></li>
+  </ol>
+</div>
+
+<button onclick="distribute()">توزيع الطلاب على الغرف</button>
+
+<h2>النتيجة</h2>
+<div id="rooms"></div>
+
+<script>
+const rooms = ["סיבם","עוז","אי טסט","משאבים"];
+
+function distribute() {
+  const inputs = document.querySelectorAll("#students input");
+  const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
+  const roomTables = {};
+  
+  rooms.forEach(r => roomTables[r]=[]);
+
+  students.forEach((s,i)=>{
+    const roomIndex = i % 4;
+    roomTables[rooms[roomIndex]].push(s);
+  });
+
+  const container = document.getElementById("rooms");
+  container.innerHTML = "";
+  rooms.forEach(r=>{
+    const tbl = document.createElement("table");
+    let html = `<tr><th colspan="4">${r}</th></tr>`;
+    for(let i=0;i<4;i++){
+      html += "<tr>";
+      html += `<td>${roomTables[r][i] || ""}</td>`;
+      html += "</tr>";
+    }
+    tbl.innerHTML = html;
+    container.appendChild(tbl);
+  });
+}
+</script>
+
+</body>
+</html>
