@@ -19,6 +19,9 @@ th{background:#e8f5e9}
 <br>
 <button id="download">تحميل Excel</button>
 <table>
+<thead>
+<tr><th>ת.ז של הנבחן</th><th>בית ספר</th><th>בחינה</th></tr>
+</thead>
 <tbody id="tbody"></tbody>
 </table><!-- Firebase --><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script><!-- Excel --><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>
 // Firebase initialization
@@ -45,7 +48,7 @@ let students=[];
 // Load CSV
 fetch(csvUrl).then(r=>r.text()).then(text=>{
   const rows=text.trim().split('\n').map(r=>r.split(','));
-  students=rows.slice(2); // كل ما في الأعمدة 1 و2 و3 سيعرض بدون تقييد
+  students=rows.slice(1); // نبدأ من الصف الثاني بعد العناوين
   render(students);
 });
 
@@ -66,7 +69,7 @@ document.getElementById('search').oninput=e=>{
 // Download Excel
 document.getElementById('download').onclick=()=>{
   const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(students);
+  const ws=XLSX.utils.aoa_to_sheet([['ת.ז של הנבחן','בית ספר','בחינה'],...students]);
   XLSX.utils.book_append_sheet(wb,ws,'Students');
   XLSX.writeFile(wb,'students.xlsx');
   db.ref('logs').push({name:user,action:'تحميل Excel',time:new Date().toLocaleString('ar')});
