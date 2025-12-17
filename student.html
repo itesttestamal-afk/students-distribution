@@ -2,159 +2,121 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>توزيع الطلاب على الغرف</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>iTest</title>
 <style>
-body { font-family: Arial; padding: 20px; direction: rtl; background: #f0f2f5; }
-h2 { color: #333; }
-input { margin: 5px 0; width: 220px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
-button { margin: 10px 0; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background: #4CAF50; color: white; font-size: 16px; }
-button:hover { background: #45a049; }
-table { border-collapse: collapse; margin: 15px 0; width: auto; }
-td, th { border: 1px solid #000; padding: 5px; text-align: center; }
-th { color: white; }
-.room-sivam th { background: #FF6F61; }
-.room-oz th { background: #6B5B95; }
-.room-eitest th { background: #88B04B; }
-.room-mashabim th { background: #F7CAC9; }
-.room-sivam td { background: #FFD1C1; }
-.room-oz td { background: #C1B3E3; }
-.room-eitest td { background: #DFF0C1; }
-.room-mashabim td { background: #FDDDE6; }
-.container { display: flex; flex-wrap: wrap; gap: 15px; }
+body { font-family: Arial; direction: rtl; background:#f5f5f5; padding:20px; }
+h1 { text-align:center; font-size:48px; color:#0a4f0a; font-weight:bold; }
+h2 { text-align:center; margin-bottom:20px; }
+input { padding:8px; width:50%; font-size:18px; border-radius:8px; border:1px solid #ccc; }
+button { padding:10px 20px; font-size:16px; background:#0a4f0a; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+table { width:100%; border-collapse:collapse; background:#fff; margin-top:20px; }
+th, td { padding:12px; border:1px solid #ccc; text-align:center; }
+th { background:#0a4f0a; color:white; }
 </style>
 </head>
+
 <body>
 
-<h2>تسجيل الطلاب</h2>
-<div>
-<label>ساعة بداية الامتحان:</label>
-<input type="time" id="startTime" value="08:00">
-<br>
-<label>ساعة نهاية الامتحان:</label>
-<input type="time" id="endTime" value="15:00">
+<h1>iTest</h1>
+<h2 id="exam-name"></h2>
+
+<div style="text-align:center">
+<input type="text" id="search" placeholder="بحث...">
 </div>
 
-<div id="students">
-  <ol id="studentList"></ol>
+<div style="text-align:center;margin-top:10px;">
+<button id="download">تحميل Excel</button>
 </div>
 
-<button onclick="distribute()">توزيع الطلاب على الغرف</button>
-<button onclick="exportExcel()">تصدير ملف Excel</button>
+<table>
+<thead>
+<tr>
+<th>العمود 1</th>
+<th>العمود 2</th>
+<th>العمود 3</th>
+</tr>
+</thead>
+<tbody id="table-body"></tbody>
+</table>
 
-<h2>النتيجة</h2>
-<div class="container" id="rooms"></div>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<!-- CSV + Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-const rooms = ["סיבם","עוז","משאבים","אי טסט"];
-const roomCounts = { "סיבם":5, "עוז":6, "משאבים":4, "אי טסט":5 };
-const examDuration = 35; // دقيقة لكل دورة
+// ===== Firebase =====
+firebase.initializeApp({
+  apiKey: "AIzaSyDwo_m6yDM5WAHfUOSbscMgYBOe0OLIdU4",
+  authDomain: "itestlogs.firebaseapp.com",
+  databaseURL: "https://itestlogs-default-rtdb.firebaseio.com",
+  projectId: "itestlogs",
+  storageBucket: "itestlogs.firebasestorage.app",
+  messagingSenderId: "551369243108",
+  appId: "1:551369243108:web:d675894ba6ed4a161f6ff1"
+});
+const db = firebase.database();
 
-// توليد 70 خانة تسجيل الطلاب
-const studentList = document.getElementById("studentList");
-for(let i=1; i<=70; i++){
-    const li = document.createElement("li");
-    const input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = "اسم الطالب " + i;
-    li.appendChild(input);
-    studentList.appendChild(li);
+// ===== اسم الطالب (إجباري) =====
+let user = "";
+while(!user){
+  user = prompt("اكتب اسمك:");
+  if(!user) alert("يجب إدخال الاسم");
 }
 
-// دالة لإضافة دقائق للوقت
-function addMinutes(timeStr, minsToAdd) {
-  const [h, m] = timeStr.split(":").map(Number);
-  const date = new Date();
-  date.setHours(h, m);
-  date.setMinutes(date.getMinutes() + minsToAdd);
-  const hh = String(date.getHours()).padStart(2,'0');
-  const mm = String(date.getMinutes()).padStart(2,'0');
-  return `${hh}:${mm}`;
-}
+// سجل الدخول
+db.ref("logs").push({
+  name: user,
+  action: "فتح الموقع",
+  time: new Date().toLocaleString("ar-EG")
+});
 
-// توزيع الطلاب على الغرف والدورات الزمنية
-function distribute() {
-  const startTime = document.getElementById("startTime").value;
-  const inputs = document.querySelectorAll("#students input");
-  const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
+// ===== Google Sheet CSV =====
+const csvUrl = "PUT_YOUR_CSV_LINK_HERE";
 
-  const container = document.getElementById("rooms");
-  container.innerHTML = "";
+let rowsData = [];
 
-  let studentIndex = 0;
-  let cycle = 0;
-
-  while(studentIndex < students.length) {
-    rooms.forEach(r => {
-      const count = roomCounts[r];
-      const group = students.slice(studentIndex, studentIndex + count);
-      if(group.length === 0) return;
-
-      const examStart = addMinutes(startTime, cycle * examDuration);
-      const examEnd = addMinutes(examStart, examDuration);
-
-      const tbl = document.createElement("table");
-      let className = "";
-      if(r==="סיבם") className="room-sivam";
-      if(r==="עוז") className="room-oz";
-      if(r==="אי טסט") className="room-eitest";
-      if(r==="משאבים") className="room-mashabim";
-      tbl.className = className;
-
-      let html = `<tr><th colspan="${group.length}">${r} (الدورة ${cycle + 1})</th></tr>`;
-      html += "<tr>";
-      group.forEach(student => {
-        html += `<td>${student}<br>${examStart} - ${examEnd}</td>`;
-      });
-      html += "</tr>";
-      tbl.innerHTML = html;
-      container.appendChild(tbl);
-
-      studentIndex += group.length;
-    });
-    cycle++;
+// تحميل البيانات
+Papa.parse(csvUrl, {
+  download: true,
+  complete: function(res){
+    const rows = res.data.filter(r => r.length >= 3 && r[0] !== "");
+    document.getElementById("exam-name").textContent = rows[0][0];
+    rowsData = rows.slice(1);
+    render(rowsData);
   }
+});
+
+function render(data){
+  const body = document.getElementById("table-body");
+  body.innerHTML = "";
+  data.forEach(r=>{
+    body.innerHTML += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`;
+  });
 }
 
-// تصدير Excel
-function exportExcel() {
-    const wb = XLSX.utils.book_new();
-    const inputs = document.querySelectorAll("#students input");
-    const students = Array.from(inputs).map(i=>i.value).filter(s=>s!="");
-    let studentIndex = 0;
-    let cycle = 0;
+// بحث
+document.getElementById("search").oninput = e =>{
+  const q = e.target.value.toLowerCase();
+  render(rowsData.filter(r => r.join(" ").toLowerCase().includes(q)));
+};
 
-    while(studentIndex < students.length) {
-      rooms.forEach(r => {
-        const count = roomCounts[r];
-        const group = students.slice(studentIndex, studentIndex + count);
-        if(group.length === 0) return;
+// تحميل Excel
+document.getElementById("download").onclick = ()=>{
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([["A","B","C"], ...rowsData]);
+  XLSX.utils.book_append_sheet(wb, ws, "Students");
+  XLSX.writeFile(wb,"students.xlsx");
 
-        const examStart = addMinutes(document.getElementById("startTime").value, cycle * examDuration);
-        const examEnd = addMinutes(examStart, examDuration);
-
-        const ws_data = [];
-        ws_data.push([r + " (الدورة " + (cycle+1) + ")"]);
-        group.forEach(student => {
-          ws_data.push([student, `${examStart} - ${examEnd}`]);
-        });
-
-        const ws = XLSX.utils.aoa_to_sheet(ws_data);
-        ws['A1'].s = { font: { color: { rgb: "FF0000" }, bold: true, sz: 14 } };
-        for (let rIdx = 2; rIdx <= group.length +1; rIdx++) {
-          const cellAddress = `B${rIdx}`;
-          if(ws[cellAddress]) {
-            ws[cellAddress].s = { fill: { fgColor: { rgb: "FFFF00" } } };
-          }
-        }
-        XLSX.utils.book_append_sheet(wb, ws, r + "_دورة" + (cycle+1));
-
-        studentIndex += group.length;
-      });
-      cycle++;
-    }
-    XLSX.writeFile(wb, "توزيع_الطلاب_منسق.xlsx");
-}
+  db.ref("logs").push({
+    name: user,
+    action: "تحميل Excel",
+    time: new Date().toLocaleString("ar-EG")
+  });
+};
 </script>
 
 </body>
