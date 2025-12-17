@@ -15,14 +15,10 @@ th{background:#e8f5e9}
 </head>
 <body>
 <h1>iTest</h1>
-<h2 id="examName">...</h2>
 <input id="search" placeholder="ابحث عن طالب...">
 <br>
 <button id="download">تحميل Excel</button>
 <table>
-<thead>
-<tr><th>رقم</th><th>اسم الطالب</th><th>الصف</th></tr>
-</thead>
 <tbody id="tbody"></tbody>
 </table><!-- Firebase --><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script><!-- Excel --><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>
 // Firebase initialization
@@ -49,8 +45,7 @@ let students=[];
 // Load CSV
 fetch(csvUrl).then(r=>r.text()).then(text=>{
   const rows=text.trim().split('\n').map(r=>r.split(','));
-  document.getElementById('examName').innerText=rows[0][0];
-  students=rows.slice(2).filter(r=>r.length>=3 && r[1]);
+  students=rows.slice(2); // كل ما في الأعمدة 1 و2 و3 سيعرض بدون تقييد
   render(students);
 });
 
@@ -58,7 +53,7 @@ function render(data){
   const tb=document.getElementById('tbody');
   tb.innerHTML='';
   data.forEach(r=>{
-    tb.innerHTML+=`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`;
+    tb.innerHTML+=`<tr><td>${r[0]||''}</td><td>${r[1]||''}</td><td>${r[2]||''}</td></tr>`;
   });
 }
 
@@ -71,7 +66,7 @@ document.getElementById('search').oninput=e=>{
 // Download Excel
 document.getElementById('download').onclick=()=>{
   const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet([['رقم','اسم','الصف'],...students]);
+  const ws=XLSX.utils.aoa_to_sheet(students);
   XLSX.utils.book_append_sheet(wb,ws,'Students');
   XLSX.writeFile(wb,'students.xlsx');
   db.ref('logs').push({name:user,action:'تحميل Excel',time:new Date().toLocaleString('ar')});
