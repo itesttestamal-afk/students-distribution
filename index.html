@@ -6,28 +6,26 @@
 <style>
 body{font-family:Arial;background:#f4f6f8;text-align:center;padding:20px}
 h1{color:#006400;font-size:42px}
-h2{margin-bottom:20px}
-input{padding:12px;font-size:18px;width:80%;max-width:400px;border:2px solid #006400;border-radius:8px;margin-bottom:20px}
+input{width:80%;max-width:400px;padding:12px;font-size:18px;margin-bottom:20px;border:2px solid #006400;border-radius:8px}
 button{padding:10px 20px;font-size:16px;background:#006400;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:20px}
 table{width:95%;margin:auto;border-collapse:collapse;background:#fff}
 th,td{border:1px solid #ccc;padding:10px}
 th{background:#e8f5e9}
 </style>
 </head>
-<body><h1>iTest</h1>
-h2 id="examName">...</h2><input id="search" placeholder="ابحث عن طالب...">
+<body>
+<h1>iTest</h1>
+<h2 id="examName">...</h2>
+<input id="search" placeholder="ابحث عن طالب...">
 <br>
-<button id="download">تحميل Excel</button><table>
+<button id="download">تحميل Excel</button>
+<table>
 <thead>
-<tr>
-<th>رقم</th>
-<th>اسم الطالب</th>
-<th>الصف</th>
-</tr>
+<tr><th>رقم</th><th>اسم الطالب</th><th>الصف</th></tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table><!-- Firebase --><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script><!-- Excel --><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>
-// ===== Firebase =====
+// Firebase initialization
 firebase.initializeApp({
   apiKey: "AIzaSyDwo_m6yDM5WAHfUOSbscMgYBOe0OLIdU4",
   authDomain: "itestlogs.firebaseapp.com",
@@ -39,45 +37,44 @@ firebase.initializeApp({
 });
 const db = firebase.database();
 
-// اسم المستخدم
-let user = "";
-while(!user){ user = prompt("اكتب اسمك"); }
+// Ask username
+let user="";
+while(!user){user=prompt('اكتب اسمك')}
+db.ref('logs').push({name:user,action:'فتح الموقع',time:new Date().toLocaleString('ar')});
 
-db.ref("logs").push({name:user,action:"فتح الموقع",time:new Date().toLocaleString("ar")});
+// CSV URL
+const csvUrl="https://docs.google.com/spreadsheets/d/e/2PACX-1vQpvziG2pi3c-qHGIJuP2M5RxUXgkWtK_5I1oPxSRhcp8ml7Ty8b4JVP-OogglSp1ddcYh7WSsUvABV/pub?output=csv";
+let students=[];
 
-// ===== Google Sheet CSV =====
-const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQpvziG2pi3c-qHGIJuP2M5RxUXgkWtK_5I1oPxSRhcp8ml7Ty8b4JVP-OogglSp1ddcYh7WSsUvABV/pub?output=csv";
-let students = [];
-
+// Load CSV
 fetch(csvUrl).then(r=>r.text()).then(text=>{
-  const rows = text.trim().split("\n").map(r=>r.split(","));
-  document.getElementById("examName").innerText = rows[0][0];
-  students = rows.slice(2).filter(r=>r.length>=3 && r[1]);
-  draw(students);
+  const rows=text.trim().split('\n').map(r=>r.split(','));
+  document.getElementById('examName').innerText=rows[0][0];
+  students=rows.slice(2).filter(r=>r.length>=3 && r[1]);
+  render(students);
 });
 
-function draw(data){
-  const tb = document.getElementById("tbody");
-  tb.innerHTML="";
+function render(data){
+  const tb=document.getElementById('tbody');
+  tb.innerHTML='';
   data.forEach(r=>{
-    tb.innerHTML += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`;
+    tb.innerHTML+=`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`;
   });
 }
 
-// البحث
-document.getElementById("search").oninput = e =>{
-  const v = e.target.value.toLowerCase();
-  draw(students.filter(r=>r.join(" ").toLowerCase().includes(v)));
+// Search
+document.getElementById('search').oninput=e=>{
+  const v=e.target.value.toLowerCase();
+  render(students.filter(r=>r.join(' ').toLowerCase().includes(v)));
 };
 
-// تحميل Excel
-document.getElementById("download").onclick = ()=>{
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([["رقم","اسم","الصف"],...students]);
-  XLSX.utils.book_append_sheet(wb,ws,"Students");
-  XLSX.writeFile(wb,"students.xlsx");
-
-  db.ref("logs").push({name:user,action:"تحميل Excel",time:new Date().toLocaleString("ar")});
+// Download Excel
+document.getElementById('download').onclick=()=>{
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([['رقم','اسم','الصف'],...students]);
+  XLSX.utils.book_append_sheet(wb,ws,'Students');
+  XLSX.writeFile(wb,'students.xlsx');
+  db.ref('logs').push({name:user,action:'تحميل Excel',time:new Date().toLocaleString('ar')});
 };
 </script></body>
 </html>
